@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>রাজশাহী ডাক্তার ডিরেক্টরি</title>
+
+<!-- iOS "Add to Home Screen" support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ডাক্তার ডিরেক্টরি">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1E4D45">
+
+<link id="appIcon" rel="icon" href="icon-192.png">
+<link id="appleIcon" rel="apple-touch-icon" href="icon-192.png">
+<link id="manifestLink" rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --bg:#FAF8F4; --ink:#2B2620; --teal:#1E4D45; --amber:#B8621B;
+    --line:#DDD6C7; --line-soft:#EEE9DD; --muted:#9A9284; --muted2:#7A7263;
+    --danger:#B3402E; --danger-bg:#FBEAE6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Hind Siliguri','Noto Sans Bengali','Segoe UI',system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px;}
+  header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);}
+  header .inner{padding:18px 0 14px;}
+  .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  h1{font-size:20px;font-weight:600;margin:0;color:var(--teal);letter-spacing:-0.01em;}
+  .sub{font-size:13px;color:var(--muted2);margin:2px 0 0;}
+  .icon-btn{border:1px solid var(--line);background:#fff;border-radius:999px;width:42px;height:42px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .icon-btn:active{background:#F4F1EA;}
+  .search{position:relative;}
+  .search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);}
+  .search input{
+    width:100%;padding:13px 14px 13px 40px;border:1px solid var(--line);border-radius:12px;
+    font-size:15px;background:#fff;outline:none;color:var(--ink);
+  }
+  .search input:focus{box-shadow:0 0 0 3px rgba(30,77,69,0.13);}
+  main{max-width:640px;margin:0 auto;padding:18px 16px 60px;}
+  .empty{text-align:center;padding:70px 20px;color:var(--muted2);}
+  .empty .big-btn{margin-top:18px;}
+  .card{
+    width:100%;text-align:left;background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--teal);
+    border-radius:10px;padding:14px 14px 14px 15px;margin-bottom:10px;cursor:pointer;display:block;
+  }
+  .card:active{border-color:#B8B097;}
+  .card h3{margin:0;font-size:15px;font-weight:600;}
+  .card .degree{font-size:12px;color:var(--muted);margin:2px 0 0;}
+  .card .spec{font-size:14px;color:var(--amber);margin:6px 0 0;}
+  .card .chamber{font-size:12px;color:var(--muted2);margin:8px 0 0;display:flex;align-items:center;gap:5px;}
+  .big-btn{
+    display:inline-flex;align-items:center;gap:8px;background:var(--teal);color:#fff;border:none;
+    padding:11px 20px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;
+  }
+  .full-btn{width:100%;justify-content:center;margin-bottom:18px;}
+  .full-btn:disabled{opacity:0.4;}
+
+  /* overlay sheets */
+  .overlay{position:fixed;inset:0;z-index:40;display:none;}
+  .overlay.show{display:block;}
+  .overlay .backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.4);}
+  .sheet{
+    position:absolute;background:#fff;overflow-y:auto;
+  }
+  .sheet.bottom{left:0;right:0;bottom:0;max-height:85vh;border-radius:18px 18px 0 0;padding:20px;}
+  .sheet.side{right:0;top:0;bottom:0;width:100%;max-width:420px;box-shadow:-8px 0 24px rgba(0,0,0,0.08);}
+  .sheet-head{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--line-soft);
+    padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .sheet-head h2{margin:0;font-size:15px;font-weight:600;color:var(--teal);display:flex;align-items:center;gap:6px;}
+  .sheet-body{padding:20px;}
+  .close-btn, .back-btn{border:none;background:transparent;cursor:pointer;padding:6px;border-radius:999px;display:flex;}
+  .close-btn:active, .back-btn:active{background:#F4F1EA;}
+
+  .detail-name{font-size:18px;font-weight:600;color:var(--teal);margin:0 4px 0 0;padding-right:30px;}
+  .detail-degree{font-size:13px;color:var(--muted);margin:6px 0 0;}
+  .detail-spec{font-size:14px;font-weight:500;color:var(--amber);margin:8px 0 0;}
+  .detail-rows{margin-top:16px;border-top:1px solid var(--line-soft);padding-top:14px;}
+  .drow{display:flex;gap:10px;margin-bottom:12px;align-items:flex-start;}
+  .drow .lbl{font-size:11px;color:var(--muted);margin:0 0 2px;}
+  .drow .val{font-size:14px;margin:0;}
+
+  .list-item{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px;margin-bottom:8px;}
+  .list-item .info p{margin:0;}
+  .list-item .name{font-size:14px;font-weight:500;}
+  .list-item .meta{font-size:12px;color:var(--muted);margin-top:2px !important;}
+  .list-actions{display:flex;gap:2px;flex-shrink:0;}
+  .list-actions button{border:none;background:transparent;padding:7px;border-radius:8px;cursor:pointer;}
+  .list-actions .edit:active{background:#F4F1EA;}
+  .list-actions .del:active{background:var(--danger-bg);}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:12px;font-weight:500;color:var(--muted2);margin-bottom:5px;}
+  .field input{
+    width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;font-size:14px;
+    outline:none;color:var(--ink);
+  }
+  .field input:focus{box-shadow:0 0 0 3px rgba(30,77,69,0.13);}
+  .form-actions{display:flex;gap:8px;padding-top:6px;}
+  .btn-ghost{padding:11px 18px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;}
+  .btn-primary{flex:1;padding:11px 18px;border:none;background:var(--teal);color:#fff;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;}
+  .btn-primary:disabled{opacity:0.4;}
+
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;
+    font-size:12px;padding:8px 16px;border-radius:999px;z-index:60;display:none;box-shadow:0 4px 14px rgba(0,0,0,0.15);}
+  .toast.show{display:block;}
+
+  .install-hint{background:#fff;border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--muted2);display:none;}
+  .install-hint.show{display:block;}
+  .install-hint b{color:var(--teal);}
+
+  .btn-secondary{
+    display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    background:#fff;color:var(--teal);border:1px solid var(--teal);
+    padding:11px 20px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:10px;
+  }
+  .import-info{background:#F4F1EA;border-radius:10px;padding:12px 14px;font-size:12px;color:var(--muted2);margin-bottom:16px;line-height:1.6;}
+  .import-info b{color:var(--teal);}
+  .preview-count{font-size:14px;font-weight:600;color:var(--teal);margin:0 0 4px;}
+  .preview-sub{font-size:12px;color:var(--muted2);margin:0 0 16px;}
+  .preview-row{border:1px solid var(--line-soft);border-radius:8px;padding:9px 12px;margin-bottom:6px;font-size:13px;}
+  .preview-row .pname{font-weight:500;}
+  .preview-row .pmeta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .preview-list{max-height:280px;overflow-y:auto;margin-bottom:16px;}
+  .col-map{font-size:12px;color:var(--muted2);background:#F4F1EA;border-radius:8px;padding:10px 12px;margin-bottom:14px;line-height:1.7;}
+  .col-map b{color:var(--teal);}
+  .paste-textarea{
+    width:100%;min-height:220px;padding:12px 13px;border:1px solid var(--line);border-radius:10px;
+    font-size:13px;font-family:inherit;outline:none;resize:vertical;line-height:1.6;
+  }
+  .paste-textarea:focus{box-shadow:0 0 0 3px rgba(30,77,69,0.13);}
+  .paste-hint{background:#F4F1EA;border-radius:10px;padding:12px 14px;font-size:12px;color:var(--muted2);margin-bottom:14px;line-height:1.7;white-space:pre-wrap;}
+  .paste-hint b{color:var(--teal);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap inner">
+    <div class="row">
+      <div>
+        <h1>রাজশাহী ডাক্তার ডিরেক্টরি</h1>
+        <p class="sub" id="countText">লোড হচ্ছে...</p>
+      </div>
+      <button class="icon-btn" onclick="openSettings()" aria-label="সেটিংস">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1E4D45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </div>
+    <div class="search">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9A9284" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="searchInput" type="text" placeholder="ডাক্তারের নাম, পদবী বা বিশেষত্ব লিখুন..." oninput="renderList()">
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="install-hint" id="installHint">
+    📱 ফোনে <b>অ্যাপের মতো ইনস্টল</b> করতে: ব্রাউজারের মেনু (⋮ বা Share) থেকে <b>"Add to Home Screen"</b> চাপুন।
+  </div>
+  <div id="listArea"></div>
+</main>
+
+<!-- Detail sheet -->
+<div class="overlay" id="detailOverlay">
+  <div class="backdrop" onclick="closeDetail()"></div>
+  <div class="sheet bottom" style="max-width:640px;margin:0 auto;left:0;right:0;">
+    <button class="close-btn" style="position:absolute;top:16px;right:16px;" onclick="closeDetail()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7A7263" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- Settings sheet -->
+<div class="overlay" id="settingsOverlay">
+  <div class="backdrop" onclick="closeSettings()"></div>
+  <div class="sheet side">
+    <div class="sheet-head">
+      <h2 id="settingsTitle">
+        <span id="backBtnWrap" style="display:none;"><button class="back-btn" onclick="showListView()">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#7A7263" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button></span>
+        <span id="settingsTitleText">সেটিংস</span>
+      </h2>
+      <button class="close-btn" onclick="closeSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7A7263" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div id="settingsListView">
+        <button class="big-btn full-btn" onclick="openAddForm()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          নতুন ডাক্তার যোগ করুন
+        </button>
+        <button class="btn-secondary" onclick="triggerImport()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E4D45" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Excel / CSV থেকে ইমপোর্ট করুন
+        </button>
+        <button class="btn-secondary" onclick="showPasteView()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E4D45" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+          তথ্য পেস্ট করে যোগ করুন
+        </button>
+        <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportFile(event)">
+        <div id="doctorListSettings"></div>
+      </div>
+      <div id="settingsFormView" style="display:none;"></div>
+      <div id="settingsImportView" style="display:none;"></div>
+      <div id="settingsPasteView" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = "rajshahi_doctors_v1";
+let doctors = [];
+let editingId = null;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    doctors = raw ? JSON.parse(raw) : [];
+  } catch(e) { doctors = []; }
+}
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(doctors));
+  showToast("সেভ হয়েছে");
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1400);
+}
+
+function renderList() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const listArea = document.getElementById('listArea');
+  const countText = document.getElementById('countText');
+  countText.textContent = `মোট ${doctors.length} জন ডাক্তারের তথ্য`;
+
+  const filtered = q ? doctors.filter(d => {
+    const hay = [d.name, d.designation, d.specialty, d.degree, d.chamber, d.address].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  }) : doctors;
+
+  if (doctors.length === 0) {
+    listArea.innerHTML = `
+      <div class="empty">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#C7C0AF" stroke-width="1.6" style="margin:0 auto 14px;"><path d="M8 3v4M16 3v4M4 11h16M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"/></svg>
+        <p>এখনো কোনো ডাক্তারের তথ্য যোগ করা হয়নি।</p>
+        <button class="big-btn" onclick="openSettings(); openAddForm();">প্রথম ডাক্তার যোগ করুন</button>
+      </div>`;
+    return;
+  }
+  if (filtered.length === 0) {
+    listArea.innerHTML = `<div class="empty"><p>কোনো ডাক্তার পাওয়া যায়নি।</p><p style="font-size:13px;margin-top:4px;">অন্য নাম বা পদবী দিয়ে চেষ্টা করুন।</p></div>`;
+    return;
+  }
+  listArea.innerHTML = filtered.map(d => `
+    <button class="card" onclick='openDetail(${JSON.stringify(d.id)})'>
+      <h3>${esc(d.name)}</h3>
+      ${d.degree ? `<p class="degree">${esc(d.degree)}</p>` : ''}
+      ${(d.designation || d.specialty) ? `<p class="spec">${esc([d.designation,d.specialty].filter(Boolean).join(' · '))}</p>` : ''}
+      ${d.chamber ? `<p class="chamber">📍 ${esc(d.chamber)}</p>` : ''}
+    </button>
+  `).join('');
+}
+
+function esc(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function openDetail(id) {
+  const d = doctors.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('detailContent').innerHTML = `
+    <h2 class="detail-name">${esc(d.name)}</h2>
+    ${d.degree ? `<p class="detail-degree">${esc(d.degree)}</p>` : ''}
+    ${(d.designation||d.specialty) ? `<p class="detail-spec">${esc([d.designation,d.specialty].filter(Boolean).join(' · '))}</p>` : ''}
+    <div class="detail-rows">
+      ${d.chamber ? row('📍','চেম্বার', d.chamber) : ''}
+      ${(d.building||d.room) ? row('🏢','ভবন / রুম', [d.building,d.room?('রুম '+d.room):''].filter(Boolean).join(' · ')) : ''}
+      ${d.address ? row('📍','ঠিকানা', d.address) : ''}
+      ${d.phone ? row('📞','ফোন', d.phone) : ''}
+      ${(d.visitingDays||d.visitingHours) ? row('🕐','ভিজিটিং সময়', [d.visitingDays,d.visitingHours].filter(Boolean).join(' · ')) : ''}
+    </div>`;
+  document.getElementById('detailOverlay').classList.add('show');
+}
+function row(icon,label,val){
+  return `<div class="drow"><div>${icon}</div><div><p class="lbl">${label}</p><p class="val">${esc(val)}</p></div></div>`;
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('show'); }
+
+function openSettings(){
+  document.getElementById('settingsOverlay').classList.add('show');
+  showListView();
+}
+function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('show'); }
+
+function showListView(){
+  document.getElementById('settingsListView').style.display = 'block';
+  document.getElementById('settingsFormView').style.display = 'none';
+  document.getElementById('settingsImportView').style.display = 'none';
+  document.getElementById('settingsPasteView').style.display = 'none';
+  document.getElementById('backBtnWrap').style.display = 'none';
+  document.getElementById('settingsTitleText').textContent = 'সেটিংস';
+  renderSettingsList();
+}
+function renderSettingsList(){
+  const el = document.getElementById('doctorListSettings');
+  if (doctors.length === 0){
+    el.innerHTML = `<p style="text-align:center;color:#9A9284;font-size:13px;padding:24px 0;">কোনো তথ্য নেই।</p>`;
+    return;
+  }
+  el.innerHTML = doctors.map(d => `
+    <div class="list-item">
+      <div class="info">
+        <p class="name">${esc(d.name)}</p>
+        <p class="meta">${esc([d.designation,d.specialty].filter(Boolean).join(' · ')) || '—'}</p>
+      </div>
+      <div class="list-actions">
+        <button class="edit" onclick='openEditForm(${JSON.stringify(d.id)})'>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E4D45" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+        </button>
+        <button class="del" onclick='deleteDoc(${JSON.stringify(d.id)})'>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B3402E" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+const FIELDS = [
+  {key:'name', label:'নাম *', ph:'ডা. মোঃ রহিম উদ্দিন'},
+  {key:'degree', label:'ডিগ্রি', ph:'MBBS, FCPS (মেডিসিন)'},
+  {key:'designation', label:'পদবী', ph:'সহকারী অধ্যাপক'},
+  {key:'specialty', label:'বিশেষত্ব', ph:'হৃদরোগ বিশেষজ্ঞ'},
+  {key:'chamber', label:'চেম্বার / হাসপাতাল', ph:'রাজশাহী মেডিকেল কলেজ হাসপাতাল'},
+  {key:'building', label:'ভবন / বিল্ডিং', ph:'নতুন ভবন'},
+  {key:'room', label:'রুম নম্বর', ph:'৩০৫'},
+  {key:'address', label:'ঠিকানা', ph:''},
+  {key:'phone', label:'ফোন নম্বর', ph:'01XXXXXXXXX'},
+  {key:'visitingDays', label:'ভিজিটিং দিন', ph:'শনি - বৃহস্পতি'},
+  {key:'visitingHours', label:'ভিজিটিং সময়', ph:'বিকাল ৫টা - রাত ৯টা'},
+];
+
+function openAddForm(){
+  editingId = null;
+  renderForm({});
+  showFormView('নতুন ডাক্তার');
+}
+function openEditForm(id){
+  const d = doctors.find(x=>x.id===id);
+  if(!d) return;
+  editingId = id;
+  renderForm(d);
+  showFormView('তথ্য সম্পাদনা');
+}
+function showFormView(title){
+  document.getElementById('settingsListView').style.display = 'none';
+  document.getElementById('settingsFormView').style.display = 'block';
+  document.getElementById('settingsImportView').style.display = 'none';
+  document.getElementById('settingsPasteView').style.display = 'none';
+  document.getElementById('backBtnWrap').style.display = 'inline-flex';
+  document.getElementById('settingsTitleText').textContent = title;
+}
+function renderForm(d){
+  const html = FIELDS.map(f => `
+    <div class="field">
+      <label>${f.label}</label>
+      <input type="text" id="f_${f.key}" placeholder="${f.ph}" value="${esc(d[f.key]||'')}" oninput="validateForm()">
+    </div>
+  `).join('') + `
+    <div class="form-actions">
+      <button class="btn-primary" id="saveBtn" onclick="saveForm()" disabled>${editingId ? 'আপডেট করুন' : 'যোগ করুন'}</button>
+      <button class="btn-ghost" onclick="showListView()">বাতিল</button>
+    </div>`;
+  document.getElementById('settingsFormView').innerHTML = html;
+  validateForm();
+}
+function validateForm(){
+  const name = document.getElementById('f_name');
+  const btn = document.getElementById('saveBtn');
+  if (name && btn) btn.disabled = !name.value.trim();
+}
+function saveForm(){
+  const data = {};
+  FIELDS.forEach(f => data[f.key] = document.getElementById('f_'+f.key).value.trim());
+  if (!data.name) return;
+  if (editingId){
+    doctors = doctors.map(d => d.id === editingId ? {...d, ...data} : d);
+  } else {
+    data.id = 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    doctors.push(data);
+  }
+  doctors.sort((a,b)=> a.name.localeCompare(b.name,'bn'));
+  save();
+  renderList();
+  showListView();
+}
+function deleteDoc(id){
+  doctors = doctors.filter(d => d.id !== id);
+  save();
+  renderList();
+  renderSettingsList();
+}
+
+// --- Excel / CSV import ---
+const HEADER_ALIASES = {
+  name: ['name','ডাক্তারের নাম','নাম','doctor name','doctor'],
+  degree: ['degree','qualification','ডিগ্রি','যোগ্যতা','ডিগ্রী'],
+  designation: ['designation','পদবী','পদ','post'],
+  specialty: ['specialty','speciality','বিশেষত্ব','specialization'],
+  chamber: ['chamber','hospital','clinic','চেম্বার','হাসপাতাল','ক্লিনিক'],
+  building: ['building','ভবন','বিল্ডিং','ব্লক','block'],
+  room: ['room','রুম','কক্ষ','room no','room number','রুম নং','রুম নম্বর'],
+  address: ['address','ঠিকানা','location'],
+  phone: ['phone','mobile','contact','ফোন','মোবাইল','নাম্বার','নম্বর'],
+  visitingDays: ['visiting days','days','ভিজিটিং দিন','দিন'],
+  visitingHours: ['visiting hours','hours','time','ভিজিটিং সময়','সময়'],
+};
+
+let importedRows = [];
+
+function triggerImport(){
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importFileInput').click();
+}
+
+function matchHeader(header){
+  const h = (header||'').toString().trim().toLowerCase();
+  for (const field in HEADER_ALIASES){
+    if (HEADER_ALIASES[field].some(alias => h === alias.toLowerCase() || h.includes(alias.toLowerCase()))){
+      return field;
+    }
+  }
+  return null;
+}
+
+function handleImportFile(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      if (!rows.length){
+        showToast('কোনো ডেটা পাওয়া যায়নি');
+        return;
+      }
+      const headers = Object.keys(rows[0]);
+      const map = {};
+      headers.forEach(h => { const f = matchHeader(h); if (f) map[h] = f; });
+
+      importedRows = rows.map(r => {
+        const obj = {};
+        for (const h in map) obj[map[h]] = (r[h]||'').toString().trim();
+        return obj;
+      }).filter(r => r.name);
+
+      const mapText = Object.keys(map).length
+        ? Object.entries(map).map(([h,f]) => `<b>${esc(h)}</b> → ${fieldLabel(f)}`).join('<br>')
+        : 'কোনো কলাম মেলেনি — শুধু "নাম" ছাড়া কিছু ইমপোর্ট হবে না।';
+      renderImportPreview(mapText);
+    } catch(err){
+      showToast('ফাইল পড়া যায়নি');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showPasteView(){
+  document.getElementById('settingsListView').style.display = 'none';
+  document.getElementById('settingsFormView').style.display = 'none';
+  document.getElementById('settingsImportView').style.display = 'none';
+  document.getElementById('settingsPasteView').style.display = 'block';
+  document.getElementById('backBtnWrap').style.display = 'inline-flex';
+  document.getElementById('settingsTitleText').textContent = 'তথ্য পেস্ট করুন';
+
+  document.getElementById('settingsPasteView').innerHTML = `
+    <div class="paste-hint">প্রতিজন ডাক্তারের তথ্যের মাঝে <b>একটা খালি লাইন</b> রেখে পেস্ট করো। প্রতিটা লাইনে লেবেল লিখে কোলন (:) দিলে সেটা সঠিক ঘরে বসে যাবে। প্রথম লাইন (লেবেল ছাড়া) নাম হিসেবে ধরা হবে।
+
+উদাহরণ:
+<b>ডা. রহিম উদ্দিন
+ডিগ্রি: MBBS, FCPS
+পদবী: সহকারী অধ্যাপক
+বিশেষত্ব: হৃদরোগ
+চেম্বার: রামেক হাসপাতাল
+ভবন: নতুন ভবন
+রুম: ৩০৫
+ফোন: 01712345678
+ভিজিটিং দিন: শনি-বৃহস্পতি
+ভিজিটিং সময়: বিকাল ৫টা-৯টা</b></div>
+    <textarea id="pasteTextarea" class="paste-textarea" placeholder="এখানে ডাক্তারদের তথ্য পেস্ট করো..."></textarea>
+    <div class="form-actions" style="margin-top:14px;">
+      <button class="btn-primary" onclick="parsePastedAndPreview()">পার্স করে দেখুন</button>
+      <button class="btn-ghost" onclick="showListView()">বাতিল</button>
+    </div>`;
+}
+
+function matchLabel(label){
+  return matchHeader(label);
+}
+
+function parsePastedText(text){
+  const blocks = text.split(/\n\s*\n+/).map(b=>b.trim()).filter(Boolean);
+  return blocks.map(block => {
+    const lines = block.split('\n').map(l=>l.trim()).filter(Boolean);
+    const obj = {};
+    lines.forEach(line => {
+      const m = line.match(/^([^:ঃ]{2,25})[:ঃ]\s*(.+)$/);
+      if (m){
+        const field = matchLabel(m[1].trim());
+        if (field){ obj[field] = m[2].trim(); return; }
+      }
+      if (!obj.name) obj.name = line;
+    });
+    return obj;
+  }).filter(r => r.name);
+}
+
+function parsePastedAndPreview(){
+  const text = document.getElementById('pasteTextarea').value;
+  if (!text.trim()){ showToast('কিছু পেস্ট করো আগে'); return; }
+  importedRows = parsePastedText(text);
+  renderImportPreview('প্রতিটি অংশ থেকে লেবেল মিলিয়ে নাম, ফোন, ভবন, রুম ইত্যাদি বসানো হয়েছে।');
+}
+
+function renderImportPreview(infoHtml){
+  document.getElementById('settingsListView').style.display = 'none';
+  document.getElementById('settingsFormView').style.display = 'none';
+  document.getElementById('settingsPasteView').style.display = 'none';
+  document.getElementById('settingsImportView').style.display = 'block';
+  document.getElementById('backBtnWrap').style.display = 'inline-flex';
+  document.getElementById('settingsTitleText').textContent = 'ইমপোর্ট প্রিভিউ';
+
+  const el = document.getElementById('settingsImportView');
+  if (importedRows.length === 0){
+    el.innerHTML = `
+      <div class="import-info">কোনো নাম শনাক্ত করা যায়নি, তাই ইমপোর্ট করা যাচ্ছে না। প্রথম লাইনে নাম আছে কিনা এবং প্রতিজনের মাঝে খালি লাইন আছে কিনা দেখো।</div>
+      <div class="form-actions"><button class="btn-ghost" onclick="showListView()">ফিরে যান</button></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <p class="preview-count">${importedRows.length} জন ডাক্তার পাওয়া গেছে</p>
+    <p class="preview-sub">নিচেরগুলো স্বয়ংক্রিয়ভাবে মেলানো হয়েছে:</p>
+    <div class="col-map">${infoHtml}</div>
+    <div class="preview-list">
+      ${importedRows.slice(0,50).map(r => `
+        <div class="preview-row">
+          <div class="pname">${esc(r.name)}</div>
+          <div class="pmeta">${esc([r.designation,r.specialty].filter(Boolean).join(' · ')) || '—'}</div>
+        </div>`).join('')}
+      ${importedRows.length > 50 ? `<p style="font-size:12px;color:var(--muted);text-align:center;">...আরও ${importedRows.length-50} জন</p>` : ''}
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" onclick="confirmImport()">${importedRows.length} জন ইমপোর্ট করুন</button>
+      <button class="btn-ghost" onclick="showListView()">বাতিল</button>
+    </div>`;
+}
+
+function fieldLabel(f){
+  const found = FIELDS.find(x => x.key === f);
+  return found ? found.label.replace(' *','') : f;
+}
+
+function confirmImport(){
+  const newDocs = importedRows.map(r => ({
+    id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    name: r.name || '',
+    degree: r.degree || '',
+    designation: r.designation || '',
+    specialty: r.specialty || '',
+    chamber: r.chamber || '',
+    building: r.building || '',
+    room: r.room || '',
+    address: r.address || '',
+    phone: r.phone || '',
+    visitingDays: r.visitingDays || '',
+    visitingHours: r.visitingHours || '',
+  }));
+  doctors = doctors.concat(newDocs);
+  doctors.sort((a,b)=> a.name.localeCompare(b.name,'bn'));
+  save();
+  renderList();
+  importedRows = [];
+  showListView();
+  showToast(`${newDocs.length} জন ইমপোর্ট হয়েছে`);
+}
+
+// --- PWA install support ---
+function setupPWA(){
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (!isStandalone) document.getElementById('installHint').classList.add('show');
+}
+
+load();
+renderList();
+setupPWA();
+if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('Service Worker Registered!'))
+          .catch((err) => console.log('Service Worker Failed:', err));
+      });
+   </script>
+      </body>
+</html>
