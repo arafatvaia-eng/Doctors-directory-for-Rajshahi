@@ -223,6 +223,10 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E4D45" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
           তথ্য পেস্ট করে যোগ করুন
         </button>
+        <button class="btn-secondary" onclick="exportVCF()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1E4D45" stroke-width="2"><path d="M17 21v-8H7v8M7 3v5h8"/><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
+          Google Contacts-এ Export করুন
+        </button>
         <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleImportFile(event)">
         <div id="doctorListSettings"></div>
       </div>
@@ -453,6 +457,61 @@ function deleteDoc(id){
   save();
   renderList();
   renderSettingsList();
+}
+
+// --- Export to Google Contacts (vCard) ---
+function vcardEscape(s){
+  return (s||'').toString().replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+}
+
+async function exportVCF(){
+  if (doctors.length === 0){ showToast('কোনো ডেটা নেই'); return; }
+
+  let vcf = '';
+  doctors.forEach(d => {
+    const name = vcardEscape(d.name);
+    const org = vcardEscape(d.chamber);
+    const title = vcardEscape([d.designation, d.specialty].filter(Boolean).join(' - '));
+    const tel = (d.phone || '').replace(/[^\d+]/g, '');
+    const adr = vcardEscape(d.address);
+    const noteParts = [];
+    if (d.degree) noteParts.push('ডিগ্রি: ' + d.degree);
+    if (d.building || d.room) noteParts.push('ভবন/রুম: ' + [d.building, d.room].filter(Boolean).join(' / '));
+    if (d.visitingDays || d.visitingHours) noteParts.push('ভিজিটিং: ' + [d.visitingDays, d.visitingHours].filter(Boolean).join(' '));
+    const note = vcardEscape(noteParts.join(' | '));
+
+    vcf += 'BEGIN:VCARD\r\n';
+    vcf += 'VERSION:3.0\r\n';
+    vcf += `FN:${name}\r\n`;
+    vcf += `N:${name};;;;\r\n`;
+    if (org) vcf += `ORG:${org}\r\n`;
+    if (title) vcf += `TITLE:${title}\r\n`;
+    if (tel) vcf += `TEL;TYPE=CELL:${tel}\r\n`;
+    if (adr) vcf += `ADR;TYPE=WORK:;;${adr};;;;\r\n`;
+    if (note) vcf += `NOTE:${note}\r\n`;
+    vcf += 'END:VCARD\r\n';
+  });
+
+  const blob = new Blob([vcf], { type: 'text/vcard;charset=utf-8' });
+
+  // Try native share sheet first (lets user pick "Contacts" directly on Android)
+  try {
+    const file = new File([blob], 'doctors-rajshahi.vcf', { type: 'text/vcard' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'রাজশাহী ডাক্তার তালিকা' });
+      return;
+    }
+  } catch (e) { /* fall through to download */ }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'doctors-rajshahi.vcf';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  showToast(`${doctors.length} জনের vCard ডাউনলোড হয়েছে`);
 }
 
 // --- Excel / CSV import ---
